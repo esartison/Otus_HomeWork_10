@@ -5,12 +5,13 @@
 ## **(1) Выбрать одну из СУБД**
 
 — Это может быть ClickHouse, Greenplum, MongoDB, MySQL, Tarantool — что угодно, что установишь и сможешь сравнить с PostgreSQL.
--- Решил использовать уже установленный в локальной виртуалке Postgres и дополнительно установить ClickHouse
+**Решил использовать уже установленный в локальной виртуалке Postgres и дополнительно установить ClickHouse**
 
-Postgres
+**Postgres**
 <img width="1288" height="311" alt="image" src="https://github.com/user-attachments/assets/893dcd69-9c87-44cb-a584-893a108f4776" />
 
-Clickhouse
+**Clickhouse**
+
 (a) Установка Clickhouse
 ```
 apt-get install -y apt-transport-https ca-certificates dirmngr
