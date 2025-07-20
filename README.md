@@ -51,14 +51,45 @@ student:~$ sudo diff /etc/clickhouse-server/config.xml /etc/clickhouse-server/co
 Для чистоты эксперимента, оставляю все параметры в ClickHouse и Postgres по умолчанию. 
 
 
+
+
 ## **(3)Загрузить в неё данные**
 
 — Объём данных: от 10 до 100 Гб (можно взять демо-наборы или сгенерировать их самостоятельно).
 
 — Протестируй механизмы загрузки: COPY, INSERT, стриминг, параллельную загрузку, сторонние утилиты.
 
+**Postgres**
+https://www.cybertec-postgresql.com/en/postgresql-bulk-loading-huge-amounts-of-data/
+https://www.crunchydata.com/blog/fast-csv-and-json-ingestion-in-postgresql-with-copy
+https://www.crunchydata.com/blog/data-loading-in-postgres-for-newbies
+
+create table employee (eid varchar(10), last_name varchar(100), first_name varchar(100), department varchar(4));
+
+insert into employee (
+    eid, last_name, first_name, department
+)
+select
+    left(md5(i::text), 10),
+    md5(random()::text),
+    md5(random()::text),
+    left(md5(random()::text), 4)
+from generate_series(1, 1000000) s(i);
+
+https://estuary.dev/blog/loading-data-into-postgresql/
+COPY persons(first_name, last_name, dob, email)
+FROM 'C:\sampledb\persons.csv'
+DELIMITER ','
+CSV HEADER;
+Method 3: Loading Data to Postgres Via pgAdmin
 
 
+https://www.postgis.us/presentations/PGOpen2018_data_loading.pdf
+
+
+**Clickhouse**
+https://clickhouse.com/docs/integrations/data-formats/sql
+https://clickhouse.com/docs/integrations/data-formats/csv-tsv
 
 
 ## **(4)Провести сравнение Postgres и ClickHouse**
