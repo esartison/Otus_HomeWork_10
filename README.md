@@ -44,6 +44,7 @@ student:~$ sudo diff /etc/clickhouse-server/config.xml /etc/clickhouse-server/co
 
 
 **Clickhouse**
+
 <img width="733" height="198" alt="image" src="https://github.com/user-attachments/assets/0ed5a72a-b0ac-4705-ba5d-8932312cd8c9" />
 
 
