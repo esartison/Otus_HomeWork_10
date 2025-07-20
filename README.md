@@ -34,7 +34,20 @@ student:~$ sudo diff /etc/clickhouse-server/config.xml /etc/clickhouse-server/co
 > sudo systemctl start clickhouse-server
 
 
+
+
+
 ## **(2) Убедись, что обе системы работают локально или в кластере (если хочешь — в Minikube).**
+
+**Postgres**
+<img width="1399" height="387" alt="image" src="https://github.com/user-attachments/assets/ac57f205-1342-45e6-be86-63d73ead4919" />
+
+
+**Clickhouse**
+<img width="733" height="198" alt="image" src="https://github.com/user-attachments/assets/0ed5a72a-b0ac-4705-ba5d-8932312cd8c9" />
+
+
+Для чистоты эксперимента, оставляю все параметры в ClickHouse и Postgres по умолчанию. 
 
 
 ## **(3)Загрузить в неё данные**
@@ -42,6 +55,8 @@ student:~$ sudo diff /etc/clickhouse-server/config.xml /etc/clickhouse-server/co
 — Объём данных: от 10 до 100 Гб (можно взять демо-наборы или сгенерировать их самостоятельно).
 
 — Протестируй механизмы загрузки: COPY, INSERT, стриминг, параллельную загрузку, сторонние утилиты.
+
+
 
 
 
