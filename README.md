@@ -121,46 +121,46 @@ student-# ;
  10000000
 (1 row)
 ```
+Загрузили 10м строк за ~1.5 минуты. 
 
 
 
-INSERT, 
+*INSERT*
 
-стриминг
-https://medium.com/@eremeykin/efficient-bulk-data-insertion-into-postgresql-with-java-0487579287ff
-
-
-, параллельную загрузку
-https://stackoverflow.com/questions/69868137/how-to-copy-into-one-postgresql-table-in-parallel-without-lock
-
-, сторонние утилиты.
-
-https://www.crunchydata.com/blog/fast-csv-and-json-ingestion-in-postgresql-with-copy
-https://www.crunchydata.com/blog/data-loading-in-postgres-for-newbies
-https://dev.to/zrbecker/querying-csv-files-using-postgres-4idg
+Из  задания не совсем понятно как именно использовать INSERT. Я создал новую таблицу на основе уже сущесвующе в базе
+```
+student=# 
+create table blog_feed_insert
+as 
+select * from blog_feed where 1=2;
+SELECT 0
 
 
-create table employee (eid varchar(10), last_name varchar(100), first_name varchar(100), department varchar(4));
+tudent:~/otus$ time  psql -c "insert into blog_feed_insert select * from blog_feed;"
+INSERT 0 10000000
 
-insert into employee (
-    eid, last_name, first_name, department
-)
-select
-    left(md5(i::text), 10),
-    md5(random()::text),
-    md5(random()::text),
-    left(md5(random()::text), 4)
-from generate_series(1, 1000000) s(i);
-
-https://estuary.dev/blog/loading-data-into-postgresql/
-COPY persons(first_name, last_name, dob, email)
-FROM 'C:\sampledb\persons.csv'
-DELIMITER ','
-CSV HEADER;
-Method 3: Loading Data to Postgres Via pgAdmin
+real	0m51,661s
+user	0m0,027s
+sys	0m0,021s
+```
+Получилось около 50 секунд
 
 
-https://www.postgis.us/presentations/PGOpen2018_data_loading.pdf
+
+
+*параллельную загрузку*
+Copy в параллель не работает, пробовал запускать несколько сессий одновременно, но они ждут друг-друга. 
+
+Есть 2 расширения\утилиты которые позволяют выполнять загрузку в параллель, но у меня возникли ошибки при установке. Не было времени разобраться.
+
+Документирую что утилиты есть 
+
+timescaledb-parallel-copy - https://github.com/timescale/timescaledb-parallel-copy(работает и для ванильного постгреса тоже)
+pg_bulkload - https://github.com/ossc-db/pg_bulkload#
+
+*сторонние утилиты*
+Не буду подробно описывать, но самый простой способ загрузить данные из CSV или Json это через PgAdmin. 
+
 
 
 **Clickhouse**
