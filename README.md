@@ -158,6 +158,7 @@ Copy в параллель не работает, пробовал запуск�
 Документирую что утилиты есть 
 
 timescaledb-parallel-copy - https://github.com/timescale/timescaledb-parallel-copy(работает и для ванильного постгреса тоже)
+
 pg_bulkload - https://github.com/ossc-db/pg_bulkload#
 
 
@@ -169,8 +170,99 @@ pg_bulkload - https://github.com/ossc-db/pg_bulkload#
 
 
 **Clickhouse**
-https://clickhouse.com/docs/integrations/data-formats/sql
-https://clickhouse.com/docs/integrations/data-formats/csv-tsv
+Действовал по мануалу  https://clickhouse.com/docs/integrations/data-formats/csv-tsv
+
+Создал пустую таблицу
+```
+localhost :) 
+
+CREATE TABLE blog_feed
+(
+    `id` UInt32,
+    `ingested_at` Date,
+    `author` String ,
+^I`content` String 
+)
+ENGINE = MergeTree
+ORDER BY tuple(id, ingested_at);
+
+CREATE TABLE blog_feed
+(
+    `id` UInt32,
+    `ingested_at` Date,
+    `author` String,
+    `content` String
+)
+ENGINE = MergeTree
+ORDER BY (id, ingested_at)
+
+Query id: 5ffd6115-851c-421b-89dd-88464d3c5135
+
+Ok.
+
+0 rows in set. Elapsed: 0.024 sec. 
+```
+
+Попытался загрузить данные и поймал ошибку
+```
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < otus_data_set_for_copy.csv
+Received exception from server (version 25.6.4):
+Code: 241. DB::Exception: Received from localhost:9000. DB::Exception: (total) memory limit exceeded: would use 1.77 GiB (attempt to allocate chunk of 38.25 MiB bytes), current RSS: 1.16 GiB, maximum: 1.74 GiB. OvercommitTracker decision: Query was selected to stop by OvercommitTracker. (MEMORY_LIMIT_EXCEEDED)
+(query: INSERT INTO blog_feed FORMAT CSVWithNames)
+
+real	0m51,490s
+user	0m5,460s
+sys	0m2,983s
+
+```
+
+Разбил CSV файл на более мелкие части и загрузка прошла успешно
+```
+student:~/otus$ split -l 2000000 otus_data_set_for_copy.csv new
+
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newaa
+
+real	0m3,814s
+user	0m0,920s
+sys	0m0,446s
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newab
+
+real	0m0,906s
+user	0m0,427s
+sys	0m0,184s
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newac
+
+real	0m1,202s
+user	0m0,532s
+sys	0m0,191s
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newad
+
+real	0m0,791s
+user	0m0,462s
+sys	0m0,125s
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newae
+
+real	0m0,961s
+user	0m0,467s
+sys	0m0,204s
+
+localhost :) select count(0) from blog_feed;
+
+SELECT count(0)
+FROM blog_feed
+
+Query id: c0f0f7a8-67e9-4cb3-bb40-7a7b7d0d7200
+
+   ┌─count(0)─┐
+1. │  9999995 │ -- 10.00 million
+   └──────────┘
+
+1 row in set. Elapsed: 0.019 sec. 
+
+```
+Загрузка в ClickHouse прошла в ~10 раз быстрее чем COPY в Postgres.
+
+
 
 
 ## **(4)Провести сравнение Postgres и ClickHouse**
