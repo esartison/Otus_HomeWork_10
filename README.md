@@ -488,6 +488,12 @@ Peak memory usage: 8.78 MiB.
 **Postgres**
 
 **Clickhouse**
+| TestCase | PG  | CH  |
+|---|---|---|
+|table size   |   |   |
+|   |   |   |
+|   |   |   |
+
 
 
 
@@ -495,15 +501,72 @@ Peak memory usage: 8.78 MiB.
 — Зафиксируй: план выполнения, время, объём данных, системные условия.
 
 **Postgres**
+student=# explain SELECT DISTINCT author
+FROM blog_feed bf
+INNER JOIN author_names an 
+ON split_part(bf.author, ' ', 1) = an.first_name
+AND an.first_name = 'Angie';
+                                              QUERY PLAN                                               
+-------------------------------------------------------------------------------------------------------
+ Unique  (cost=268893.33..275479.48 rows=40359 width=14)
+   ->  Nested Loop  (cost=268893.33..275354.48 rows=50001 width=14)
+         ->  Gather Merge  (cost=268893.33..274716.77 rows=50001 width=14)
+               Workers Planned: 2
+               ->  Sort  (cost=267893.31..267945.39 rows=20834 width=14)
+                     Sort Key: bf.author
+                     ->  Parallel Seq Scan on blog_feed bf  (cost=0.00..266398.82 rows=20834 width=14)
+                           Filter: (split_part(author, ' '::text, 1) = 'Angie'::text)
+         ->  Materialize  (cost=0.00..12.69 rows=1 width=6)
+               ->  Seq Scan on author_names an  (cost=0.00..12.69 rows=1 width=6)
+                     Filter: (first_name = 'Angie'::text)
+ JIT:
+   Functions: 10
+   Options: Inlining false, Optimization false, Expressions true, Deforming true
+(14 rows)
+
 
 **Clickhouse**
 
 
-| TestCase | PG  | CH  |
-|---|---|---|
-|table size   |   |   |
-|   |   |   |
-|   |   |   |
+localhost :) EXPLAIN PLAN SELECT DISTINCT author
+FROM (select author,  substringIndex(author, ' ', 1) AS  name from blog_feed) bf
+INNER JOIN author_names an 
+ON trim(bf.name) = trim(an.first_name)
+AND an.first_name = 'Angie';
+
+EXPLAIN
+SELECT DISTINCT author
+FROM
+(
+    SELECT
+        author,
+        substringIndex(author, ' ', 1) AS name
+    FROM blog_feed
+) AS bf
+INNER JOIN author_names AS an ON (trimBoth(bf.name) = trimBoth(an.first_name)) AND (an.first_name = 'Angie')
+
+Query id: f312d64a-fe8a-49a8-9ecd-945f19d7c89d
+
+    ┌─explain─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ 1. │ Expression (Project names)                                                                                                                          │
+ 2. │   Distinct (DISTINCT)                                                                                                                               │
+ 3. │     Distinct (Preliminary DISTINCT)                                                                                                                 │
+ 4. │       Expression (Projection)                                                                                                                       │
+ 5. │         Expression                                                                                                                                  │
+ 6. │           Join                                                                                                                                      │
+ 7. │             Expression                                                                                                                              │
+ 8. │               Expression ((Change column names to column identifiers + (Project names + (Projection + Change column names to column identifiers)))) │
+ 9. │                 ReadFromMergeTree (default.blog_feed)                                                                                               │
+10. │             Filter (Join filter)                                                                                                                    │
+11. │               Expression (Change column names to column identifiers)                                                                                │
+12. │                 ReadFromMergeTree (default.author_names)                                                                                            │
+    └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+12 rows in set. Elapsed: 0.030 sec. 
+
+
+
+
 
 
 ## **(5)Описать процесс**
