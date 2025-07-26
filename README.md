@@ -169,7 +169,10 @@ pg_bulkload - https://github.com/ossc-db/pg_bulkload#
 
 
 
+
+
 **Clickhouse**
+
 Действовал по мануалу  https://clickhouse.com/docs/integrations/data-formats/csv-tsv
 
 Создал пустую таблицу
