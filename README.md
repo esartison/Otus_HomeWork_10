@@ -205,7 +205,7 @@ Ok.
 
 Попытался загрузить данные и поймал ошибку
 ```
-student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < otus_data_set_for_copy.csv
+student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < pg.csv
 Received exception from server (version 25.6.4):
 Code: 241. DB::Exception: Received from localhost:9000. DB::Exception: (total) memory limit exceeded: would use 1.77 GiB (attempt to allocate chunk of 38.25 MiB bytes), current RSS: 1.16 GiB, maximum: 1.74 GiB. OvercommitTracker decision: Query was selected to stop by OvercommitTracker. (MEMORY_LIMIT_EXCEEDED)
 (query: INSERT INTO blog_feed FORMAT CSVWithNames)
@@ -218,7 +218,7 @@ sys	0m2,983s
 
 Разбил CSV файл на более мелкие части и загрузка прошла успешно
 ```
-student:~/otus$ split -l 2000000 otus_data_set_for_copy.csv new
+student:~/otus$ split -l 2000000 pg.csv new
 
 student:~/otus$ time clickhouse-client --password password -q "INSERT INTO blog_feed FORMAT CSVWithNames" < newaa
 
@@ -366,6 +366,120 @@ Time: 6108,193 ms (00:06,108)
 
 ```
 
+--- Создаем абсолютно идентичную таблицу в ClickHouse как в PG
+CREATE TABLE blog_feed ENGINE = MergeTree ()
+ORDER BY id AS
+SELECT *
+FROM postgresql('studentsrv1:5432', 'student', 'blog_feed', 'student', 'student') pg
+;
+Ok.
+
+0 rows in set. Elapsed: 64.557 sec. Processed 9.99 million rows, 1.46 GB (154.75 thousand rows/s., 22.55 MB/s.)
+Peak memory usage: 347.73 MiB.
+
+localhost :) desc blog_feed
+   ┌─name────────┬─type────────────────────┬─default_type─┬─default_expression─┬─comment─┬─codec_expression─┬─ttl_expression─┐
+1. │ id          │ Int32                   │              │                    │         │                  │                │
+2. │ ingested_at │ Nullable(DateTime64(6)) │              │                    │         │                  │                │
+3. │ author      │ String                  │              │                    │         │                  │                │
+4. │ content     │ String                  │              │                    │         │                  │                │
+   └─────────────┴─────────────────────────┴──────────────┴────────────────────┴─────────┴──────────────────┴────────────────┘
+
+localhost :) SELECT table,
+    formatReadableSize(sum(bytes)) as size,
+    min(min_date) as min_date,
+    max(max_date) as max_date
+    FROM system.parts
+    WHERE active
+GROUP BY table;
+Query id: 812a046d-f9b6-4bdd-8682-0a6f95347a8a
+    ┌─table───────────────────┬─size───────┬───min_date─┬───max_date─┐
+ 5. │ blog_feed               │ 678.78 MiB │ 1970-01-01 │ 1970-01-01 │
+    └─────────────────────────┴────────────┴────────────┴────────────┘
+
+ 
+
+localhost :) select count(0) from blog_feed;
+
+SELECT count(0)
+FROM blog_feed
+
+Query id: 154e2458-cc40-4360-8224-6b5ce39792e4
+
+   ┌─count(0)─┐
+1. │  9989999 │ -- 9.99 million
+   └──────────┘
+
+1 row in set. Elapsed: 0.013 sec. 
+
+
+localhost :) select * from blog_feed where id=10000039;
+
+SELECT *
+FROM blog_feed
+WHERE id = 10000039
+
+Query id: 421ce508-2cf1-4c09-bb1f-758d5ef890bb
+
+   ┌───────id─┬────────────────ingested_at─┬─author──────┬─content───────────────────────────────────────────────────────────────────────────┐
+1. │ 10000039 │ 2025-07-24 21:46:06.474004 │ Andrew Mack │ Last purpose trouble provide throughout school stuff me travel push result close. │
+   └──────────┴────────────────────────────┴─────────────┴───────────────────────────────────────────────────────────────────────────────────┘
+
+1 row in set. Elapsed: 0.048 sec. Processed 8.19 thousand rows, 38.46 KB (170.50 thousand rows/s., 800.37 KB/s.)
+Peak memory usage: 774.13 KiB.
+
+
+
+
+localhost :) select author,count(0) from blog_feed group by author order by 2;
+765014. │ Patricia Pittman    │       13 │
+765015. │ Aaron Barr          │       13 │
+765016. │ Brandi Daniels      │       13 │
+765017. │ Melanie Newman      │       13 │
+765018. │ Isaiah Moore        │       13 │
+765019. │ Glenn Flores        │       13 │
+765020. │ Brenda Serrano      │       13 │
+765021. │ Adam Kaiser         │       13 │
+765022. │ Craig Osborne       │       13 │
+765023. │ Cheryl Benson       │       13 │
+765024. │ Wayne Dunn          │       13 │
+        └─author──────────────┴─count(0)─┘
+Showed 1000 out of 923398 rows.
+
+923398 rows in set. Elapsed: 2.386 sec. Processed 9.99 million rows, 222.53 MB (4.19 million rows/s., 93.25 MB/s.)
+Peak memory usage: 146.13 MiB.
+
+
+
+-- Join
+создать таблицу с именами для тестирования Join-в
+CREATE TABLE author_names ENGINE = MergeTree ()
+ORDER BY count
+SETTINGS allow_nullable_key = 1
+AS
+SELECT *
+FROM postgresql('studentsrv1:5432', 'student', 'author_names', 'student', 'student') pg
+;
+
+
+-- Узнать уникальные полные имена авторов с именем Angie
+SELECT DISTINCT author
+FROM (select author,  substringIndex(author, ' ', 1) AS  name from blog_feed) bf
+INNER JOIN author_names an 
+ON trim(bf.name) = trim(an.first_name)
+AND an.first_name = 'Angie';
+602. │ Angie Case        │
+603. │ Angie Henson      │
+604. │ Angie Mclean DVM  │
+605. │ Angie Callahan    │
+606. │ Angie Potts       │
+607. │ Angie Mayo        │
+608. │ Angie Livingston  │
+609. │ Angie Atkins      │
+     └─author────────────┘
+
+609 rows in set. Elapsed: 2.657 sec. Processed 9.99 million rows, 222.54 MB (3.76 million rows/s., 83.74 MB/s.)
+Peak memory usage: 8.78 MiB.
 ```
 
 
@@ -387,7 +501,7 @@ Time: 6108,193 ms (00:06,108)
 
 | TestCase | PG  | CH  |
 |---|---|---|
-|select count   |   |   |
+|table size   |   |   |
 |   |   |   |
 |   |   |   |
 
@@ -417,6 +531,7 @@ ClickHouse загружает данные намного быстрее.
 --- Основные процесссы загрузки данных из CSV в Postgres(copy) и ClickHouse(insert into table form csv_file) показались простыми, удобными и быстрыми даже на базах с 
 настройками по умолчанию. 
 
+При загрузке большого CSV файла в CH поймал ошибку, данные частично загрузились около 7.5m из 10. Ожидал что или загрузиться все или ничего - ACID. Похоже, для CH это не работает всегда. 
 
 ## **(6) 📎Что сдавать**
 
