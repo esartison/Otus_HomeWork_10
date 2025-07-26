@@ -272,6 +272,7 @@ Query id: c0f0f7a8-67e9-4cb3-bb40-7a7b7d0d7200
 **Postgres**
 
 ```
+-- Метаданые
 student=# \d blog_feed
                                       Table "public.blog_feed"
    Column    |            Type             | Collation | Nullable |             Default              
@@ -284,7 +285,7 @@ Indexes:
     "blog_feed_pkey" PRIMARY KEY, btree (id)
 
 
-
+-- Размер таблицы
 student=# \dt+ blog_feed
                                      List of relations
  Schema |   Name    | Type  |  Owner  | Persistence | Access method |  Size   | Description 
@@ -292,6 +293,7 @@ student=# \dt+ blog_feed
  public | blog_feed | table | student | permanent   | heap          | 1593 MB | 
 
 
+-- Простой Select count
 student=# select count(0) from blog_feed;
   count  
 ---------
@@ -300,7 +302,7 @@ student=# select count(0) from blog_feed;
 
 Time: 5321,590 ms (00:05,322)
 
-
+-- Поиск по ключу
 student=# select * from blog_feed where id=10000039;
     id    |        ingested_at         |   author    |                                      content                                      
 ----------+----------------------------+-------------+-----------------------------------------------------------------------------------
@@ -309,6 +311,7 @@ student=# select * from blog_feed where id=10000039;
 
 Time: 22,626 ms
 
+-- Аггрегация
 student=# select author,count(0) from blog_feed group by author order by 2;
       author                | count 
 ----------------------------+-------
@@ -335,8 +338,7 @@ student=# select author,count(0) from blog_feed group by author order by 2;
  Alexandria Petersen        |     1
 Time: 24577,850 ms (00:24,578)
 
--- Join
-создать таблицу с именами для тестирования Join-в
+-- для Join-а создать таблицу с именами для тестирования
 student=# CREATE TABLE author_names AS
 SELECT SPLIT_PART(author, ' ', 1) AS first_name
 	,COUNT(0)
@@ -345,7 +347,7 @@ GROUP BY split_part(author, ' ', 1);
 SELECT 695
 Time: 9819,865 ms (00:09,820)
 
--- Узнать уникальные полные имена авторов с именем Angie
+-- через Join Узнать уникальные полные имена авторов с именем Angie
 SELECT DISTINCT author
 FROM blog_feed bf
 INNER JOIN author_names an 
@@ -365,7 +367,6 @@ Time: 6108,193 ms (00:06,108)
 **Clickhouse**
 
 ```
-
 --- Создаем абсолютно идентичную таблицу в ClickHouse как в PG
 CREATE TABLE blog_feed ENGINE = MergeTree ()
 ORDER BY id AS
@@ -374,9 +375,7 @@ FROM postgresql('studentsrv1:5432', 'student', 'blog_feed', 'student', 'student'
 ;
 Ok.
 
-0 rows in set. Elapsed: 64.557 sec. Processed 9.99 million rows, 1.46 GB (154.75 thousand rows/s., 22.55 MB/s.)
-Peak memory usage: 347.73 MiB.
-
+-- Метаданые
 localhost :) desc blog_feed
    ┌─name────────┬─type────────────────────┬─default_type─┬─default_expression─┬─comment─┬─codec_expression─┬─ttl_expression─┐
 1. │ id          │ Int32                   │              │                    │         │                  │                │
@@ -385,6 +384,7 @@ localhost :) desc blog_feed
 4. │ content     │ String                  │              │                    │         │                  │                │
    └─────────────┴─────────────────────────┴──────────────┴────────────────────┴─────────┴──────────────────┴────────────────┘
 
+-- Размер таблицы
 localhost :) SELECT table,
     formatReadableSize(sum(bytes)) as size,
     min(min_date) as min_date,
@@ -398,39 +398,31 @@ Query id: 812a046d-f9b6-4bdd-8682-0a6f95347a8a
     └─────────────────────────┴────────────┴────────────┴────────────┘
 
  
-
+-- Простой Select count
 localhost :) select count(0) from blog_feed;
-
 SELECT count(0)
 FROM blog_feed
-
 Query id: 154e2458-cc40-4360-8224-6b5ce39792e4
-
    ┌─count(0)─┐
 1. │  9989999 │ -- 9.99 million
    └──────────┘
-
 1 row in set. Elapsed: 0.013 sec. 
 
 
+-- Поиск по ключу
 localhost :) select * from blog_feed where id=10000039;
-
 SELECT *
 FROM blog_feed
 WHERE id = 10000039
-
 Query id: 421ce508-2cf1-4c09-bb1f-758d5ef890bb
-
    ┌───────id─┬────────────────ingested_at─┬─author──────┬─content───────────────────────────────────────────────────────────────────────────┐
 1. │ 10000039 │ 2025-07-24 21:46:06.474004 │ Andrew Mack │ Last purpose trouble provide throughout school stuff me travel push result close. │
    └──────────┴────────────────────────────┴─────────────┴───────────────────────────────────────────────────────────────────────────────────┘
-
 1 row in set. Elapsed: 0.048 sec. Processed 8.19 thousand rows, 38.46 KB (170.50 thousand rows/s., 800.37 KB/s.)
 Peak memory usage: 774.13 KiB.
 
 
-
-
+-- Аггрегация
 localhost :) select author,count(0) from blog_feed group by author order by 2;
 765014. │ Patricia Pittman    │       13 │
 765015. │ Aaron Barr          │       13 │
@@ -450,9 +442,7 @@ Showed 1000 out of 923398 rows.
 Peak memory usage: 146.13 MiB.
 
 
-
--- Join
-создать таблицу с именами для тестирования Join-в
+-- для Join-а создать таблицу с именами для тестирования
 CREATE TABLE author_names ENGINE = MergeTree ()
 ORDER BY count
 SETTINGS allow_nullable_key = 1
@@ -461,8 +451,7 @@ SELECT *
 FROM postgresql('studentsrv1:5432', 'student', 'author_names', 'student', 'student') pg
 ;
 
-
--- Узнать уникальные полные имена авторов с именем Angie
+-- через Join Узнать уникальные полные имена авторов с именем Angie
 SELECT DISTINCT author
 FROM (select author,  substringIndex(author, ' ', 1) AS  name from blog_feed) bf
 INNER JOIN author_names an 
@@ -485,22 +474,25 @@ Peak memory usage: 8.78 MiB.
 
 — Сравни скорость выполнения на PostgreSQL и выбранной системе.
 
-**Postgres**
-
-**Clickhouse**
+Создал таблицу со сравнением на одинаковом наборе данных, при настройках базы по умолчанию
 | TestCase | PG  | CH  |
 |---|---|---|
-|table size   |   |   |
-|   |   |   |
-|   |   |   |
+|table size   |1593Mb   |  680Mb |
+|select count   | 5.3s   | 0.01s  |
+|select using id   | 22ms  | 0.04s  |
+|select aggregate   | 24.5s  | 2.3s  |
+|select join   | 6.1s  | 2.6s  |
 
-
-
+Размер таблиц может не такой большой, локальные ресурсы не позволяют. Но объем позволяет проверить про-ть. 
 
 
 — Зафиксируй: план выполнения, время, объём данных, системные условия.
 
+Фиксирую Планы Выполнения, время и объем данных есть в предыдущем пункте. Системные условия не описываю, так-как взял обе базы с настройками по умолчанию
+
 **Postgres**
+
+```
 student=# explain SELECT DISTINCT author
 FROM blog_feed bf
 INNER JOIN author_names an 
@@ -523,11 +515,11 @@ AND an.first_name = 'Angie';
    Functions: 10
    Options: Inlining false, Optimization false, Expressions true, Deforming true
 (14 rows)
-
+```
 
 **Clickhouse**
 
-
+```
 localhost :) EXPLAIN PLAN SELECT DISTINCT author
 FROM (select author,  substringIndex(author, ' ', 1) AS  name from blog_feed) bf
 INNER JOIN author_names an 
@@ -561,9 +553,7 @@ Query id: f312d64a-fe8a-49a8-9ecd-945f19d7c89d
 11. │               Expression (Change column names to column identifiers)                                                                                │
 12. │                 ReadFromMergeTree (default.author_names)                                                                                            │
     └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-
-12 rows in set. Elapsed: 0.030 sec. 
-
+```
 
 
 
@@ -602,13 +592,3 @@ ClickHouse загружает данные намного быстрее.
 **Все предоставляю в MD формате**
 💻 При желании — скрипты или ссылки на репозиторий
 **Все ссылки уже в указаны в каждом шаге**
-
-
-
-
-Критерии оценки:
-Задание выполнено и описано в отчёте
-Загружено от 10 до 100 Гб данных
-Выполнено сравнение с PostgreSQL по времени выполнения запросов
-Видны разные подходы к загрузке данных
-Выводы обоснованы
